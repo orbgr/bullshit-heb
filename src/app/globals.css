@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #db7151;
+  --color-primary-hover: #c4603f;
+  --color-accent: #f3d467;
+  --color-truth: #4ade80;
+  --color-danger: #ef4444;
+  --color-surface: #1a1a2e;
+  --color-surface-light: #252547;
+  --color-surface-lighter: #2d2d5e;
+  --color-text: #f0f0f0;
+  --color-text-muted: #9ca3af;
+  --font-family-display: "Heebo", sans-serif;
+}
+
+body {
+  background-color: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-family-display);
+  min-height: 100dvh;
+}
+
+/* Arcade-style selection highlight */
+::selection {
+  background-color: var(--color-primary);
+  color: white;
+}
