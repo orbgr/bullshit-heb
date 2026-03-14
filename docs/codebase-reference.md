@@ -6,7 +6,7 @@ Source: [github.com/radotzki/bullshit-wtf](https://github.com/radotzki/bullshit-
 
 ---
 
-## Top-Level Structure
+## Top-Level Structure.
 
 ```
 bullshit-wtf/
