@@ -44,7 +44,6 @@ export default function GamePage({
         <RoundIntro
           pin={pin}
           roundIndex={game.round_index}
-          stateTs={game.state_ts}
           hasPresenter={hp}
           playerScore={myScore}
         />
@@ -57,7 +56,6 @@ export default function GamePage({
           questionText={game.current_q ?? ""}
           questionIndex={game.question_index}
           totalQ={game.total_q}
-          stateTs={game.state_ts}
           hasPresenter={hp}
           playerScore={myScore}
         />
@@ -70,7 +68,6 @@ export default function GamePage({
           questionText={game.current_q ?? ""}
           questionIndex={game.question_index}
           totalQ={game.total_q}
-          stateTs={game.state_ts}
           hasPresenter={hp}
           playerScore={myScore}
         />
@@ -91,7 +88,6 @@ export default function GamePage({
       return (
         <ScoreBoard
           pin={pin}
-          stateTs={game.state_ts}
           hasPresenter={hp}
           playerScore={myScore}
         />

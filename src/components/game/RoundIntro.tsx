@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { POINTS, DURATIONS } from "@/lib/constants";
 import { GameState } from "@/lib/types";
 import { useTimer } from "@/hooks/useTimer";
@@ -12,21 +12,22 @@ import { he } from "@/lib/i18n";
 interface RoundIntroProps {
   pin: string;
   roundIndex: number;
-  stateTs: number;
   hasPresenter: boolean;
   playerScore: number;
 }
 
-export function RoundIntro({ pin, roundIndex, stateTs, hasPresenter, playerScore }: RoundIntroProps) {
+export function RoundIntro({ pin, roundIndex, hasPresenter, playerScore }: RoundIntroProps) {
   const role = useSessionStore((s) => s.role);
   const isPresenter = role === "presenter";
   const shouldTick = isPresenter || !hasPresenter;
+  const tickedRef = useRef(false);
 
   const duration = DURATIONS[GameState.RoundIntro]!;
-  const { expired } = useTimer(duration, stateTs);
+  const { expired } = useTimer(duration);
 
   useEffect(() => {
-    if (expired && shouldTick) {
+    if (expired && shouldTick && !tickedRef.current) {
+      tickedRef.current = true;
       fetch("/api/tick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

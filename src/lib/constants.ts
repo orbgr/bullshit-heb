@@ -8,8 +8,8 @@ export const POINTS = {
 
 export const DURATIONS: Partial<Record<GameState, number>> = {
   [GameState.RoundIntro]: 5000,
-  [GameState.ShowQuestion]: 25000,
-  [GameState.ShowAnswers]: 20000,
+  [GameState.ShowQuestion]: 10000,
+  [GameState.ShowAnswers]: 10000,
   [GameState.ScoreBoard]: 5000,
 };
 

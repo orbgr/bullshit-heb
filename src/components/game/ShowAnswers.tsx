@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { GameHeader } from "./GameHeader";
@@ -20,7 +20,6 @@ interface ShowAnswersProps {
   questionText: string;
   questionIndex: number;
   totalQ: number;
-  stateTs: number;
   hasPresenter: boolean;
   playerScore: number;
 }
@@ -30,7 +29,6 @@ export function ShowAnswers({
   questionText,
   questionIndex,
   totalQ,
-  stateTs,
   hasPresenter,
   playerScore,
 }: ShowAnswersProps) {
@@ -38,6 +36,7 @@ export function ShowAnswers({
   const [selected, setSelected] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showQuestion, setShowQuestion] = useState(false);
+  const tickedRef = useRef(false);
   const role = useSessionStore((s) => s.role);
   const playerId = useSessionStore((s) => s.playerId);
   const isPresenter = role === "presenter";
@@ -45,7 +44,7 @@ export function ShowAnswers({
   const { play, stop } = useSound();
 
   const duration = DURATIONS[GameState.ShowAnswers]!;
-  const { progress, panic, expired } = useTimer(duration, stateTs);
+  const { secondsLeft, progress, panic, expired } = useTimer(duration);
 
   useEffect(() => {
     play("during-game");
@@ -57,14 +56,15 @@ export function ShowAnswers({
   }, [panic, play]);
 
   useEffect(() => {
-    if (expired && shouldTick) {
+    if (expired && shouldTick && !tickedRef.current) {
+      tickedRef.current = true;
       fetch("/api/tick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin }),
       });
     }
-  }, [expired, isPresenter, pin]);
+  }, [expired, shouldTick, pin]);
 
   // Fetch answers
   useEffect(() => {
@@ -76,13 +76,11 @@ export function ShowAnswers({
       .eq("question_index", questionIndex)
       .then(({ data }) => {
         if (data) {
-          // Deduplicate by text, exclude player's own answer
           const seen = new Set<string>();
           const filtered: AnswerRow[] = [];
           for (const a of data as AnswerRow[]) {
             const key = a.answer_text.toLowerCase();
             if (seen.has(key)) continue;
-            // For players, exclude their own answer
             if (!isPresenter && a.player_id === playerId) {
               seen.add(key);
               continue;
@@ -119,6 +117,13 @@ export function ShowAnswers({
       <ProgressBar progress={progress} panic={panic} />
 
       <div className="flex-1 p-6 overflow-y-auto">
+        {/* Countdown */}
+        <div className="text-center mb-4">
+          <span className={`text-5xl font-black ${panic ? "text-danger" : "text-accent"}`}>
+            {secondsLeft}
+          </span>
+        </div>
+
         {isPresenter && (
           <p className="text-xl font-bold text-center mb-6">
             {formatQuestion(questionText)}

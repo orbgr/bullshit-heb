@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePlayersSubscription } from "@/hooks/usePlayersSubscription";
 import { useSessionStore } from "@/stores/sessionStore";
 import { useTimer } from "@/hooks/useTimer";
@@ -12,21 +12,22 @@ import { GameState } from "@/lib/types";
 
 interface ScoreBoardProps {
   pin: string;
-  stateTs: number;
   hasPresenter: boolean;
   playerScore: number;
 }
 
-export function ScoreBoard({ pin, stateTs, hasPresenter, playerScore }: ScoreBoardProps) {
+export function ScoreBoard({ pin, hasPresenter, playerScore }: ScoreBoardProps) {
   const { players } = usePlayersSubscription(pin);
   const role = useSessionStore((s) => s.role);
   const isPresenter = role === "presenter";
   const shouldTick = isPresenter || !hasPresenter;
+  const tickedRef = useRef(false);
   const duration = DURATIONS[GameState.ScoreBoard]!;
-  const { expired } = useTimer(duration, stateTs);
+  const { expired } = useTimer(duration);
 
   useEffect(() => {
-    if (expired && shouldTick) {
+    if (expired && shouldTick && !tickedRef.current) {
+      tickedRef.current = true;
       fetch("/api/tick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { ProgressBar } from "@/components/ui/ProgressBar";
@@ -19,7 +19,6 @@ interface ShowQuestionProps {
   questionText: string;
   questionIndex: number;
   totalQ: number;
-  stateTs: number;
   hasPresenter: boolean;
   playerScore: number;
 }
@@ -29,7 +28,6 @@ export function ShowQuestion({
   questionText,
   questionIndex,
   totalQ,
-  stateTs,
   hasPresenter,
   playerScore,
 }: ShowQuestionProps) {
@@ -37,6 +35,7 @@ export function ShowQuestion({
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const tickedRef = useRef(false);
   const role = useSessionStore((s) => s.role);
   const playerId = useSessionStore((s) => s.playerId);
   const isPresenter = role === "presenter";
@@ -44,7 +43,7 @@ export function ShowQuestion({
   const { play, stop } = useSound();
 
   const duration = DURATIONS[GameState.ShowQuestion]!;
-  const { progress, panic, expired } = useTimer(duration, stateTs);
+  const { secondsLeft, progress, panic, expired } = useTimer(duration);
 
   useEffect(() => {
     play("during-game");
@@ -56,14 +55,15 @@ export function ShowQuestion({
   }, [panic, play]);
 
   useEffect(() => {
-    if (expired && shouldTick) {
+    if (expired && shouldTick && !tickedRef.current) {
+      tickedRef.current = true;
       fetch("/api/tick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pin }),
       });
     }
-  }, [expired, isPresenter, pin]);
+  }, [expired, shouldTick, pin]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -103,6 +103,11 @@ export function ShowQuestion({
       <ProgressBar progress={progress} panic={panic} />
 
       <div className="flex-1 flex flex-col items-center justify-center p-6 gap-6">
+        {/* Countdown */}
+        <span className={`text-6xl font-black ${panic ? "text-danger" : "text-accent"}`}>
+          {secondsLeft}
+        </span>
+
         <p className="text-2xl font-bold text-center leading-relaxed">
           {formatQuestion(questionText)}
         </p>

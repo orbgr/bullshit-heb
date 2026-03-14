@@ -1,29 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 
 interface TimerResult {
   remaining: number;
+  secondsLeft: number;
   progress: number;
   panic: boolean;
   expired: boolean;
 }
 
-export function useTimer(durationMs: number, startTimestamp: number): TimerResult {
-  const [now, setNow] = useState(Date.now());
+/**
+ * Self-contained countdown timer. Starts from mount time, not server timestamp.
+ * Returns secondsLeft for display.
+ */
+export function useTimer(durationMs: number): TimerResult {
+  const startRef = useRef(Date.now());
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 250);
-    return () => clearInterval(interval);
-  }, []);
+    startRef.current = Date.now();
+    setElapsed(0);
 
-  const elapsed = now - startTimestamp;
+    const interval = setInterval(() => {
+      setElapsed(Date.now() - startRef.current);
+    }, 250);
+
+    return () => clearInterval(interval);
+  }, [durationMs]);
+
   const remaining = Math.max(0, durationMs - elapsed);
+  const secondsLeft = Math.ceil(remaining / 1000);
   const progress = Math.min(1, elapsed / durationMs);
-  const panic = remaining > 0 && remaining < 5000;
+  const panic = remaining > 0 && remaining < 3000;
   const expired = remaining <= 0;
 
-  return { remaining, progress, panic, expired };
+  return { remaining, secondsLeft, progress, panic, expired };
 }
