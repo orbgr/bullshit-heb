@@ -7,14 +7,14 @@ export const POINTS = {
 } as const;
 
 export const DURATIONS: Partial<Record<GameState, number>> = {
-  [GameState.RoundIntro]: 5000,
-  [GameState.ShowQuestion]: 10000,
+  [GameState.RoundIntro]: 3000,
+  [GameState.ShowQuestion]: 15000,
   [GameState.ShowAnswers]: 10000,
-  [GameState.ScoreBoard]: 5000,
+  [GameState.ScoreBoard]: 3000,
 };
 
-export const REVEAL_INTERVAL_MS = 7000;
-export const REVEAL_SHOW_CREATORS_DELAY_MS = 3000;
+export const REVEAL_INTERVAL_MS = 5000;
+export const REVEAL_SHOW_CREATORS_DELAY_MS = 2000;
 
 export const MAX_PLAYERS = 8;
 export const MAX_NICKNAME_LEN = 9;
