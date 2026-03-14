@@ -58,6 +58,7 @@ export default function GamePage({
           totalQ={game.total_q}
           hasPresenter={hp}
           playerScore={myScore}
+          duration={game.time_to_answer * 1000}
         />
       );
 
@@ -70,6 +71,7 @@ export default function GamePage({
           totalQ={game.total_q}
           hasPresenter={hp}
           playerScore={myScore}
+          duration={game.time_to_choose * 1000}
         />
       );
 

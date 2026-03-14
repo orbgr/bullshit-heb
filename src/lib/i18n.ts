@@ -15,6 +15,8 @@ export const he = {
   createNewGame: "צור משחק חדש",
   questionCount: "מספר שאלות:",
   questions: "שאלות",
+  timeToAnswer: "זמן לתשובה (שניות)",
+  timeToChoose: "זמן לבחירה (שניות)",
   create: "צור",
 
   // Join game

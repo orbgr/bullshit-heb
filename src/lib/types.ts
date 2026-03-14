@@ -18,6 +18,8 @@ export interface GameRow {
   total_q: number;
   current_q: string | null;
   has_presenter: boolean;
+  time_to_answer: number;
+  time_to_choose: number;
   fork_pin: string | null;
   created_at: string;
 }

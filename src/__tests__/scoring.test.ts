@@ -83,4 +83,23 @@ describe("calculateScores", () => {
     expect(result.answerScores.size).toBe(0);
     expect(result.selectionScores.size).toBe(0);
   });
+
+  it("score=0 is present in map (not lost due to falsy check)", () => {
+    const selections: ScoringSelection[] = [
+      { playerId: "p2", answerId: "a1", answerText: "fake1" },
+    ];
+    const result = calculateScores(answers, selections, 0);
+    // Selector who fell for a player lie gets score=0, must be in map
+    expect(result.selectionScores.has("p2")).toBe(true);
+    expect(result.selectionScores.get("p2")).toBe(0);
+  });
+
+  it("negative house lie score is tracked correctly", () => {
+    const selections: ScoringSelection[] = [
+      { playerId: "p1", answerId: "a3", answerText: "house lie" },
+    ];
+    const result = calculateScores(answers, selections, 0);
+    expect(result.selectionScores.has("p1")).toBe(true);
+    expect(result.selectionScores.get("p1")).toBe(-500);
+  });
 });

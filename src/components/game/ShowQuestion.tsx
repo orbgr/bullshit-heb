@@ -10,8 +10,7 @@ import { useTimer } from "@/hooks/useTimer";
 import { useSound } from "@/hooks/useSound";
 import { useSessionStore } from "@/stores/sessionStore";
 import { formatQuestion } from "@/lib/questions";
-import { DURATIONS, MAX_ANSWER_LEN } from "@/lib/constants";
-import { GameState } from "@/lib/types";
+import { MAX_ANSWER_LEN } from "@/lib/constants";
 import { he } from "@/lib/i18n";
 
 interface ShowQuestionProps {
@@ -21,6 +20,7 @@ interface ShowQuestionProps {
   totalQ: number;
   hasPresenter: boolean;
   playerScore: number;
+  duration: number;
 }
 
 export function ShowQuestion({
@@ -30,6 +30,7 @@ export function ShowQuestion({
   totalQ,
   hasPresenter,
   playerScore,
+  duration,
 }: ShowQuestionProps) {
   const [answer, setAnswer] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -42,7 +43,6 @@ export function ShowQuestion({
   const shouldTick = isPresenter || !hasPresenter;
   const { play, stop } = useSound();
 
-  const duration = DURATIONS[GameState.ShowQuestion]!;
   const { secondsLeft, progress, panic, expired } = useTimer(duration, questionIndex);
 
   useEffect(() => {

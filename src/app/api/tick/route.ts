@@ -167,11 +167,14 @@ export async function POST(req: NextRequest) {
 
       const { data: selectionsRaw } = await supabase
         .from("answer_selections")
-        .select("*, answers!answer_selections_selected_answer_id_fkey(answer_text)")
+        .select("*")
         .eq("game_pin", pin)
         .eq("question_index", game.question_index);
 
-      const scoringAnswers = (answers ?? []).map((a) => ({
+      const answersArr = answers ?? [];
+      const answerMap = new Map(answersArr.map((a) => [a.id, a]));
+
+      const scoringAnswers = answersArr.map((a) => ({
         id: a.id,
         playerId: a.player_id,
         text: a.answer_text,
@@ -182,9 +185,7 @@ export async function POST(req: NextRequest) {
       const scoringSelections = (selectionsRaw ?? []).map((s) => ({
         playerId: s.player_id,
         answerId: s.selected_answer_id,
-        answerText: (s as Record<string, unknown>).answers
-          ? ((s as Record<string, unknown>).answers as { answer_text: string }).answer_text
-          : "",
+        answerText: answerMap.get(s.selected_answer_id)?.answer_text ?? "",
       }));
 
       const { answerScores, selectionScores } = calculateScores(
@@ -212,7 +213,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Generate reveal answers
-      const updatedAnswers = (answers ?? []).map((a) => ({
+      const updatedAnswers = answersArr.map((a) => ({
         answerId: a.id,
         text: a.answer_text,
         isRealAnswer: a.is_real_answer,
@@ -223,9 +224,7 @@ export async function POST(req: NextRequest) {
 
       const updatedSelections = (selectionsRaw ?? []).map((s) => ({
         playerId: s.player_id,
-        answerText: (s as Record<string, unknown>).answers
-          ? ((s as Record<string, unknown>).answers as { answer_text: string }).answer_text
-          : "",
+        answerText: answerMap.get(s.selected_answer_id)?.answer_text ?? "",
         selectionScore: selectionScores.get(s.player_id) ?? 0,
       }));
 
@@ -233,6 +232,13 @@ export async function POST(req: NextRequest) {
         updatedAnswers,
         updatedSelections
       );
+
+      // Clean existing reveals (idempotent if tick fires twice)
+      await supabase
+        .from("reveal_answers")
+        .delete()
+        .eq("game_pin", pin)
+        .eq("question_index", game.question_index);
 
       // Insert reveal answers
       if (revealItems.length > 0) {
@@ -276,7 +282,7 @@ export async function POST(req: NextRequest) {
       // Aggregate by player
       const playerScoreDeltas = new Map<string, number>();
       for (const a of answers ?? []) {
-        if (a.player_id && a.score) {
+        if (a.player_id) {
           playerScoreDeltas.set(
             a.player_id,
             (playerScoreDeltas.get(a.player_id) ?? 0) + a.score
@@ -284,12 +290,10 @@ export async function POST(req: NextRequest) {
         }
       }
       for (const s of selections ?? []) {
-        if (s.score) {
-          playerScoreDeltas.set(
-            s.player_id,
-            (playerScoreDeltas.get(s.player_id) ?? 0) + s.score
-          );
-        }
+        playerScoreDeltas.set(
+          s.player_id,
+          (playerScoreDeltas.get(s.player_id) ?? 0) + s.score
+        );
       }
 
       // Update each player's cumulative score

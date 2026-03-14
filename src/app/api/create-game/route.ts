@@ -3,12 +3,15 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { generatePin } from "@/lib/pin";
 
 export async function POST(req: NextRequest) {
-  const { totalQ } = await req.json();
+  const { totalQ, timeToAnswer = 15, timeToChoose = 10 } = await req.json();
   const supabase = createServiceClient();
 
   if (![5, 7, 9].includes(totalQ)) {
     return NextResponse.json({ error: "Invalid question count" }, { status: 400 });
   }
+
+  const tta = Math.min(60, Math.max(5, Number(timeToAnswer) || 15));
+  const ttc = Math.min(60, Math.max(5, Number(timeToChoose) || 10));
 
   // Generate unique PIN (retry on collision)
   let pin = "";
@@ -50,6 +53,8 @@ export async function POST(req: NextRequest) {
     question_index: 0,
     total_q: totalQ,
     has_presenter: false,
+    time_to_answer: tta,
+    time_to_choose: ttc,
   });
 
   if (gameErr) {

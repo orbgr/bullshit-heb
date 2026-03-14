@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { GameHeader } from "./GameHeader";
 import { GameFooter } from "./GameFooter";
@@ -34,6 +34,7 @@ export function RevealTheTruth({
   const role = useSessionStore((s) => s.role);
   const isPresenter = role === "presenter";
   const shouldTick = isPresenter || !hasPresenter;
+  const tickedRef = useRef(false);
   const { play, stop } = useSound();
 
   // Fetch reveal answers
@@ -71,7 +72,8 @@ export function RevealTheTruth({
       if (currentIndex < items.length - 1) {
         setCurrentIndex((i) => i + 1);
         setShowCreators(false);
-      } else if (shouldTick) {
+      } else if (shouldTick && !tickedRef.current) {
+        tickedRef.current = true;
         fetch("/api/tick", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

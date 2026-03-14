@@ -10,8 +10,6 @@ import { useSound } from "@/hooks/useSound";
 import { useSessionStore } from "@/stores/sessionStore";
 import { createClient } from "@/lib/supabase/client";
 import { formatQuestion } from "@/lib/questions";
-import { DURATIONS } from "@/lib/constants";
-import { GameState } from "@/lib/types";
 import type { AnswerRow } from "@/lib/types";
 import { he } from "@/lib/i18n";
 
@@ -22,6 +20,7 @@ interface ShowAnswersProps {
   totalQ: number;
   hasPresenter: boolean;
   playerScore: number;
+  duration: number;
 }
 
 export function ShowAnswers({
@@ -31,6 +30,7 @@ export function ShowAnswers({
   totalQ,
   hasPresenter,
   playerScore,
+  duration,
 }: ShowAnswersProps) {
   const [answers, setAnswers] = useState<AnswerRow[]>([]);
   const [selected, setSelected] = useState(false);
@@ -43,7 +43,6 @@ export function ShowAnswers({
   const shouldTick = isPresenter || !hasPresenter;
   const { play, stop } = useSound();
 
-  const duration = DURATIONS[GameState.ShowAnswers]!;
   const { secondsLeft, progress, panic, expired } = useTimer(duration, questionIndex);
 
   useEffect(() => {

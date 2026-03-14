@@ -1,77 +1,123 @@
-# Plan: Fix Timer Reset + Answer Display + Early Advance
+# Plan: Fix Reveal/Scoring Bugs, Lobby Sync, Custom Timers + Tests
 
 ## Context
 
-Two bugs and one enhancement found during testing:
-1. **Answer display bug**: ShowAnswers shows the same constant answers (house lies + real) — player-submitted fake answers don't appear because the client filters them out incorrectly
-2. **Timer not resetting**: Between questions, the timer doesn't restart because `useTimer` only resets when `durationMs` changes, but it's always 10000ms
-3. **Enhancement**: If all players have answered/voted, skip the remaining timer and advance immediately
+Three issues found during multiplayer testing:
+1. **RevealTheTruth/ScoreBoard broken** — duplicates in reveal, scores not updating
+2. **Lobby doesn't update in real-time** — player 1 only sees themselves, not new joiners
+3. **Feature**: custom timer settings when creating a game
 
-## Bug 1: Answer display — player answers not shown
+---
 
-**Root cause**: `ShowAnswers.tsx` lines 84-86 filter out the current player's own answer from the displayed list. This is correct behavior (you shouldn't vote for your own lie). The answers ARE in the DB correctly — house lies + real answer + player answers.
+## Fix 1: RevealTheTruth + Scoring (4 sub-fixes)
 
-**But**: The user reports "answers are constant". This means: the answer display should show OTHER players' fake answers too, plus house lies, plus real answer. The current flow works correctly for multiplayer (player A sees player B's lies but not their own). For SOLO play (1 player), the player only sees house lies + real answer, which looks "constant".
+### 1a. Add tickedRef guard to RevealTheTruth
+**File:** `src/components/game/RevealTheTruth.tsx`
+- Add `tickedRef = useRef(false)` guard before the tick fetch call (line ~75)
+- Prevents duplicate tick calls from timer re-fires
 
-**Fix**: No change needed to the filtering logic — it's correct. The real issue was house lie count. Already fixed with `MIN_FAKE_ANSWERS = 3`. The answers will vary because:
-- Each player's fake answer appears for OTHER players
-- House lies fill the gap to ensure minimum 4 answers
-- Solo play: 1 player answer (hidden from self) + 3 house lies + 1 real = 4 visible
+### 1b. Fix Supabase join — don't use FK join, look up answer_text manually
+**File:** `src/app/api/tick/route.ts` (ShowAnswers case, ~line 170)
+- Remove the fragile `answers!answer_selections_selected_answer_id_fkey(answer_text)` join
+- Instead: fetch answer_selections plain, then for each selection, find the matching answer from the already-fetched answers array by `selected_answer_id`
+- This eliminates the silent join failure that causes empty answerText → all scores = 0
 
-**No code change needed for Bug 1.**
+### 1c. Fix score persistence — falsy 0 bug
+**File:** `src/app/api/tick/route.ts` (RevealTheTruth case, ~line 279-287)
+- `if (a.score)` and `if (s.score)` both skip score=0 because 0 is falsy in JS
+- Change to: always add to delta map, remove the truthy guards
+- Also: `if (delta !== 0)` is fine to keep (no update needed if truly 0)
 
-## Bug 2: Timer not resetting between questions
+### 1d. Make tick idempotent — clean before insert
+**File:** `src/app/api/tick/route.ts` (ShowAnswers case)
+- Before inserting reveal_answers, delete existing for this game_pin + question_index
+- Prevents duplicates if tick fires twice
 
-**Root cause**: `src/hooks/useTimer.ts` — the `useEffect` depends only on `[durationMs]`. Since duration is always 10000ms for both ShowQuestion and ShowAnswers, the timer never resets when moving between questions.
+---
 
-**Fix**: Add a `key` prop to force re-mount, OR add a reset trigger parameter.
+## Fix 2: Lobby Real-Time Updates
 
-Best approach: Pass `questionIndex` (or a `key`) to force the hook to reset. Add a `resetKey` param:
+**File:** `src/hooks/usePlayersSubscription.ts`
+- Replace the merge-state approach with a simpler pattern: on ANY Realtime event (INSERT or UPDATE), **re-fetch the full player list**
+- Max 8 players so the query is trivial
+- Eliminates all race conditions between initial fetch and subscription
 
-**File: `src/hooks/useTimer.ts`**
-- Change signature: `useTimer(durationMs: number, resetKey: string | number)`
-- Add `resetKey` to the useEffect dependency array
-- This forces a fresh timer whenever the question changes
+```typescript
+const refetch = async () => {
+  const { data } = await supabase.from("players").select("*")
+    .eq("game_pin", pin).order("join_order");
+  if (data) setPlayers(data);
+};
+// Initial fetch
+refetch();
+// On any change, re-fetch
+channel.on("postgres_changes", { event: "*", ... }, () => refetch());
+```
 
-**File: `src/components/game/ShowQuestion.tsx`**
-- Pass `questionIndex` as resetKey: `useTimer(duration, questionIndex)`
+---
 
-**File: `src/components/game/ShowAnswers.tsx`**
-- Pass `questionIndex` as resetKey: `useTimer(duration, questionIndex)`
+## Feature: Custom Timer Settings
 
-**File: `src/components/game/RoundIntro.tsx`**
-- Pass `roundIndex` as resetKey: `useTimer(duration, roundIndex)`
+### 3a. New migration
+**File:** `supabase/migrations/00004_custom_timers.sql`
+- `ALTER TABLE games ADD COLUMN time_to_answer smallint NOT NULL DEFAULT 15;`
+- `ALTER TABLE games ADD COLUMN time_to_choose smallint NOT NULL DEFAULT 10;`
 
-**File: `src/components/game/ScoreBoard.tsx`**
-- Pass `game.question_index` as resetKey (need to add prop): `useTimer(duration, questionIndex)`
+### 3b. Update types
+**File:** `src/lib/types.ts` — add `time_to_answer` and `time_to_choose` to GameRow
 
-## Enhancement: Early advance when all players done
+### 3c. Update create game UI
+**File:** `src/app/create/page.tsx`
+- Add two free-form number inputs with defaults 15 and 10
 
-Already partially implemented — `/api/answer` and `/api/choose-answer` both check if all players answered/voted and call `/api/tick` to advance. But verify this works correctly:
+### 3d. Update create-game API
+**File:** `src/app/api/create-game/route.ts`
+- Accept + validate (min 5, max 60)
 
-**File: `src/app/api/answer/route.ts`** — line 72-80 already checks `answerCount >= playerCount` and calls tick. OK.
+### 3e. Use game-specific timers
+**Files:** `ShowQuestion.tsx`, `ShowAnswers.tsx`, `game/[pin]/page.tsx`
+- Pass `game.time_to_answer * 1000` and `game.time_to_choose * 1000` as duration instead of reading DURATIONS constant
 
-**File: `src/app/api/choose-answer/route.ts`** — line 42-50 already checks `selectionCount >= playerCount` and calls tick. OK.
+---
 
-The early-advance logic exists. It should work if the timer bug is fixed (currently the timer fires expired=true immediately on the second question, which races with the auto-advance).
+## Tests
+
+### New: `src/__tests__/tick-scoring.test.ts`
+- Player selects real answer → truth points
+- Player selects house lie → negative points
+- Player selects player lie → author gets bullshit points, selector gets 0
+- Score of 0 is correctly tracked (regression for falsy bug)
+- Negative scores are correctly tracked
+
+### Update: `src/__tests__/scoring.test.ts`
+- Add: score=0 not lost
+- Add: negative house lie score tracked
+
+---
 
 ## Files to modify
 
 | File | Change |
 |------|--------|
-| `src/hooks/useTimer.ts` | Add `resetKey` parameter to dependency array |
-| `src/components/game/ShowQuestion.tsx` | Pass `questionIndex` as resetKey |
-| `src/components/game/ShowAnswers.tsx` | Pass `questionIndex` as resetKey |
-| `src/components/game/RoundIntro.tsx` | Pass `roundIndex` as resetKey |
-| `src/components/game/ScoreBoard.tsx` | Add `questionIndex` prop, pass as resetKey |
-| `src/app/game/[pin]/page.tsx` | Pass `questionIndex` to ScoreBoard |
+| `src/components/game/RevealTheTruth.tsx` | Add tickedRef guard |
+| `src/app/api/tick/route.ts` | Fix join, fix score persistence, idempotent inserts |
+| `src/hooks/usePlayersSubscription.ts` | Re-fetch on every event |
+| `src/app/create/page.tsx` | Add timer inputs |
+| `src/app/api/create-game/route.ts` | Accept timer params |
+| `src/lib/types.ts` | Add timer fields to GameRow |
+| `src/components/game/ShowQuestion.tsx` | Accept duration prop |
+| `src/components/game/ShowAnswers.tsx` | Accept duration prop |
+| `src/app/game/[pin]/page.tsx` | Pass timer values to components |
+| `supabase/migrations/00004_custom_timers.sql` | New migration |
+| `src/__tests__/tick-scoring.test.ts` | New test file |
+| `src/__tests__/scoring.test.ts` | Add edge case tests |
 
 ## Verification
 
-1. `pnpm dev` — start local server
-2. Create game, join as 1 player, press Start
-3. Verify: RoundIntro shows 5 seconds, then ShowQuestion shows countdown 10→0
-4. Submit an answer — verify timer keeps counting OR game advances immediately (solo = all answered)
-5. ShowAnswers: verify 4+ answers visible, countdown 10→0
-6. Play through multiple questions — verify timer resets each time
-7. `pnpm test` — existing tests still pass
+1. Run new migration in Supabase SQL Editor
+2. `pnpm test` — all tests pass
+3. `pnpm dev` — start local
+4. Create game with custom timers (e.g., 20s/15s)
+5. Join with 2 browser tabs — verify BOTH see each other in lobby immediately
+6. Play through: answer → vote → reveal (no duplicates) → scoreboard (scores update)
+7. Play multiple questions — scores accumulate correctly
