@@ -12,18 +12,19 @@ import { GameState } from "@/lib/types";
 
 interface ScoreBoardProps {
   pin: string;
+  questionIndex: number;
   hasPresenter: boolean;
   playerScore: number;
 }
 
-export function ScoreBoard({ pin, hasPresenter, playerScore }: ScoreBoardProps) {
+export function ScoreBoard({ pin, questionIndex, hasPresenter, playerScore }: ScoreBoardProps) {
   const { players } = usePlayersSubscription(pin);
   const role = useSessionStore((s) => s.role);
   const isPresenter = role === "presenter";
   const shouldTick = isPresenter || !hasPresenter;
   const tickedRef = useRef(false);
   const duration = DURATIONS[GameState.ScoreBoard]!;
-  const { expired } = useTimer(duration);
+  const { expired } = useTimer(duration, questionIndex);
 
   useEffect(() => {
     if (expired && shouldTick && !tickedRef.current) {

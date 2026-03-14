@@ -14,7 +14,7 @@ interface TimerResult {
  * Self-contained countdown timer. Starts from mount time, not server timestamp.
  * Returns secondsLeft for display.
  */
-export function useTimer(durationMs: number): TimerResult {
+export function useTimer(durationMs: number, resetKey: string | number = 0): TimerResult {
   const startRef = useRef(Date.now());
   const [elapsed, setElapsed] = useState(0);
 
@@ -27,7 +27,7 @@ export function useTimer(durationMs: number): TimerResult {
     }, 250);
 
     return () => clearInterval(interval);
-  }, [durationMs]);
+  }, [durationMs, resetKey]);
 
   const remaining = Math.max(0, durationMs - elapsed);
   const secondsLeft = Math.ceil(remaining / 1000);

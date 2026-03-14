@@ -43,7 +43,7 @@ export function ShowQuestion({
   const { play, stop } = useSound();
 
   const duration = DURATIONS[GameState.ShowQuestion]!;
-  const { secondsLeft, progress, panic, expired } = useTimer(duration);
+  const { secondsLeft, progress, panic, expired } = useTimer(duration, questionIndex);
 
   useEffect(() => {
     play("during-game");

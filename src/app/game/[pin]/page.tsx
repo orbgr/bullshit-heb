@@ -88,6 +88,7 @@ export default function GamePage({
       return (
         <ScoreBoard
           pin={pin}
+          questionIndex={game.question_index}
           hasPresenter={hp}
           playerScore={myScore}
         />

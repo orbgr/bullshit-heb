@@ -23,7 +23,7 @@ export function RoundIntro({ pin, roundIndex, hasPresenter, playerScore }: Round
   const tickedRef = useRef(false);
 
   const duration = DURATIONS[GameState.RoundIntro]!;
-  const { expired } = useTimer(duration);
+  const { expired } = useTimer(duration, roundIndex);
 
   useEffect(() => {
     if (expired && shouldTick && !tickedRef.current) {
